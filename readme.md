@@ -2,7 +2,7 @@
 
 A rather simplistic lib to remove the need to edit `hosts` file.
 
-Lib is proxying either `dinput8.dll`, or less common `iphlpapi.dll`.
+Lib is proxying either `dinput8.dll`, or a less common `iphlpapi.dll`.
 
 ## Supported titles
 
@@ -24,11 +24,11 @@ Lib is proxying either `dinput8.dll`, or less common `iphlpapi.dll`.
 
 1. **Download the Latest Release**
 
-Grab the latest version of the tool from the Releases page.
+Grab the latest version of the tool from the [Releases](https://github.com/Warehouse-dev/universal-wh-redirector/releases/latest) page.
 
 2. **Place the File**
 
-Move the downloaded file to the same folder as your game's .exe file.
+Move the downloaded file to the same folder as your game's `.exe` file.
 
 3. **Launch the Game**
 
