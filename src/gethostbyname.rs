@@ -138,7 +138,26 @@ pub unsafe fn hook_host_lookup() {
     let sig_offset: usize = match sig_match {
         Method::DW2Generic => 45,
         Method::DW1Generic => 28,
-        Method::GH3 => 1,
+        Method::GH3 => {
+
+            //Special handling for GH3, since it actually utilize jumps.
+            
+            let distance = *(offset.add(1 /* Skip call opcode */) as *const usize);
+
+            let jmp_address = offset.add(5 /* Skip call opcode + address */ + distance);
+
+            let address = *(jmp_address.add(2 /* Skip ptr jmp opcode */) as *const usize);
+
+            let addr = address as *const u8;
+
+            use_memory(addr, 4, |addr| {
+                // Replace the address with our faker function
+                let ptr: *mut usize = addr as *mut usize;
+                *ptr = fake_gethostbyname as usize;
+            });
+
+            return;
+        },
         Method::ROTF => 28,
         Method::None => todo!(),
     };
@@ -159,10 +178,10 @@ pub unsafe extern "system" fn fake_gethostbyname(hostname: PCSTR) -> *mut HOSTEN
 
     let requested_hostname_to_resolve = {
         match unsafe { CStr::from_ptr(hostname.0.cast()).to_str() } {
-            Ok(host_str) => host_str,
+            Ok(host_str) => &host_str.to_lowercase(),
             Err(e) => {
                 error!("Failed to parse domain name: {e}");
-                "placeholder"
+                &"placeholder".to_string()
             }
         }
     };
@@ -180,7 +199,7 @@ pub unsafe extern "system" fn fake_gethostbyname(hostname: PCSTR) -> *mut HOSTEN
             "stun.jp.demonware.net",
         ];
 
-        if official_stuns.contains(&requested_hostname_to_resolve) {
+        if official_stuns.contains(&requested_hostname_to_resolve.as_ref()) {
             info!("Performing stun detour");
             let host = CString::new("stun.aiwarehouse.xyz").unwrap();
             return unsafe { gethostbyname(PCSTR::from_raw(host.as_ptr().cast())) };

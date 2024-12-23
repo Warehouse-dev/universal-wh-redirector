@@ -17,7 +17,7 @@ Lib is proxying either `dinput8.dll`, or a less common `iphlpapi.dll`.
 |------------------------------------|------------|--------------|
 | Transformers Revenge of the Fallen | ❌          | ✅            |
 | Race Driver Grid                   | ✅          | ✅            |
-| Guitar Hero 3                      | ✅          | ✅            |
+| Guitar Hero 3                      | ✅          | ❌            |
 | Singularity                        | ✅          | ✅            |
 
 ## Instalation
