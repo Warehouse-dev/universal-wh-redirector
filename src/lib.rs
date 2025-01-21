@@ -1,17 +1,17 @@
 #![allow(non_snake_case)]
 
-use std::{ffi::c_void, mem::transmute, ptr, thread, time::Duration};
+use std::{ffi::c_void, mem::transmute, thread, time::Duration};
 
 use gethostbyname::hook_host_lookup;
-use log::{debug, info, LevelFilter};
+use log::{info, LevelFilter};
 use simplelog::{
     ColorChoice, CombinedLogger, Config, ConfigBuilder, TermLogger, TerminalMode, WriteLogger,
 };
 use windows::{
-    core::{s, w, IUnknown, GUID, HRESULT, PCSTR},
+    core::{s, w, IUnknown, GUID, HRESULT},
     Win32::{
         Foundation::{HINSTANCE, HMODULE},
-        System::LibraryLoader::{DisableThreadLibraryCalls, GetModuleFileNameA, GetProcAddress, LoadLibraryW},
+        System::LibraryLoader::{DisableThreadLibraryCalls, GetProcAddress, LoadLibraryW},
     },
 };
 
