@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::{ffi::c_void, mem::transmute};
+use std::{ffi::c_void, mem::transmute, ptr, thread, time::Duration};
 
 use gethostbyname::hook_host_lookup;
 use log::{debug, info, LevelFilter};
@@ -8,10 +8,10 @@ use simplelog::{
     ColorChoice, CombinedLogger, Config, ConfigBuilder, TermLogger, TerminalMode, WriteLogger,
 };
 use windows::{
-    core::{s, w, IUnknown, GUID, HRESULT},
+    core::{s, w, IUnknown, GUID, HRESULT, PCSTR},
     Win32::{
         Foundation::{HINSTANCE, HMODULE},
-        System::LibraryLoader::{DisableThreadLibraryCalls, GetProcAddress, LoadLibraryW},
+        System::LibraryLoader::{DisableThreadLibraryCalls, GetModuleFileNameA, GetProcAddress, LoadLibraryW},
     },
 };
 
@@ -68,7 +68,7 @@ pub unsafe fn init(module: HMODULE) {
     ])
     .unwrap();
 
-    debug!("uwhr base: {module:X?}");
+    info!("uwhr base: {module:X?}");
 
     let module = LoadLibraryW(w!("C:\\Windows\\System32\\dinput8.dll")).unwrap_unchecked();
     PROXY_FUNCTION = Some(transmute(GetProcAddress(module, s!("DirectInput8Create"))));
@@ -78,7 +78,14 @@ pub unsafe fn init(module: HMODULE) {
     info!("Proxy set");
 
     hook_host_lookup();
-    debug!("Done!");
+    
+    //Specific handle for UPX packed Grid
+    thread::spawn(|| {
+        thread::sleep(Duration::from_secs(1));
+        hook_host_lookup();
+    });
+
+    info!("Done!");
 }
 
 pub fn free(_module: HMODULE) {}

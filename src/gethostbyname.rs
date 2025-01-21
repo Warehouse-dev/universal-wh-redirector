@@ -1,4 +1,4 @@
-use crate::mem::use_memory;
+use crate::mem::{find_pattern, use_memory};
 use log::{debug, error, info, warn};
 use std::{
     ffi::{CStr, CString},
@@ -25,13 +25,8 @@ const HOST_LOOKUP_OP_CODES_DW2: &[u8] = &[
 const HOST_LOOKUP_MASK_DW1: &str = "xxxxxxxxxxxxx????xxxxxxxxxxx????";
 
 const HOST_LOOKUP_OP_CODES_DW1: &[u8] = &[
-    0x53, 
-    0x56, 
-    0x8b, 0x74, 0x24, 0x0c, 
-    0x0f, 0xbe, 0x06, 
-    0x50, 
-    0x33, 0xdb,
-    0xe8, 0x80, 0x9d, 0x1b, 0x00, //_isalpha
+    0x53, 0x56, 0x8b, 0x74, 0x24, 0x0c, 0x0f, 0xbe, 0x06, 0x50, 0x33, 0xdb, 0xe8, 0x80, 0x9d, 0x1b,
+    0x00, //_isalpha
     0x83, 0xc4, 0x04, 0x85, 0xc0, 0x74, 0x45, 0x57, 0x56, 0xff, 0x15, 0x74, 0x94, 0xc8,
     0x00, // dword ptr [->WS2_32.DLL::gethostbyname]
 ];
@@ -39,22 +34,12 @@ const HOST_LOOKUP_OP_CODES_DW1: &[u8] = &[
 //Rotf. I suspect that due to MSVCR80 it produced a slightly different asm
 const HOST_LOOKUP_MASK_ROTF: &str = "xxxxxxxxxxxxxx????xxxxxxxxxx????";
 
-const HOST_LOOKUP_OP_CODES_ROTF: &[u8] = 
-&[ 0x53, 
- 0x56, 
- 0x57,
- 0x8b, 0xf9, 
- 0x8b, 0xf0, 
- 0x0f, 0xbe, 0x07, 
- 0x50, 
- 0x33, 0xdb, 
- 0xe8, 0x9e, 0x57, 0x58, 0x00, //_isalpha
- 0x83, 0xc4, 0x04, 
- 0x85, 0xc0, 
- 0x57, 
- 0x74, 0x34, 
- 0xff, 0x15, 0x6c, 0xb5, 0xae, 0x00 // dword ptr [->WS2_32.DLL::gethostbyname]
- ];
+const HOST_LOOKUP_OP_CODES_ROTF: &[u8] = &[
+    0x53, 0x56, 0x57, 0x8b, 0xf9, 0x8b, 0xf0, 0x0f, 0xbe, 0x07, 0x50, 0x33, 0xdb, 0xe8, 0x9e, 0x57,
+    0x58, 0x00, //_isalpha
+    0x83, 0xc4, 0x04, 0x85, 0xc0, 0x57, 0x74, 0x34, 0xff, 0x15, 0x6c, 0xb5, 0xae,
+    0x00, // dword ptr [->WS2_32.DLL::gethostbyname]
+];
 
 //GH3 and GHWT. Potentially game specific, but other functions doesn't match with Grid.
 const HOST_LOOKUP_MASK_GH3: &str = "x????xxxxxxxxxxxxxxxxxxxx";
@@ -63,6 +48,11 @@ const HOST_LOOKUP_OP_CODES_GH3: &[u8] = &[
     0x85, 0xc0, 0x74, 0x5c, 0x0f, 0xbf, 0x50, 0x0a, 0x8b, 0x40, 0x0c, 0x8b, 0x08, 0x52, 0x51, 0x8d,
     0x54, 0x24, 0x10, 0x52,
 ];
+
+/// Address to start matching from
+const HOST_LOOKUP_START_OFFSET: usize = 0x401000;
+/// Address to end matching at
+const HOST_LOOKUP_END_OFFSET: usize = 0xEA7000;
 
 #[derive(PartialEq)]
 enum Method {
@@ -128,6 +118,23 @@ pub unsafe fn hook_host_lookup() {
         }
     }
 
+
+    //Very special fix for Grid upx packed binary. Might cause 
+    if sig_match == Method::None {
+        match find_pattern(
+            HOST_LOOKUP_START_OFFSET,
+            HOST_LOOKUP_END_OFFSET,
+            HOST_LOOKUP_MASK_DW1,
+            HOST_LOOKUP_OP_CODES_DW1,
+        ) {
+            Some(found_addr) => {
+                sig_match = Method::DW1Generic;
+                offset = found_addr;
+            }
+            None => info!("DW1 signature via raw mem wasn't found"),
+        };
+    }
+
     if offset.is_null() {
         warn!("Failed to find gethostbyname hook position");
         return;
@@ -139,9 +146,8 @@ pub unsafe fn hook_host_lookup() {
         Method::DW2Generic => 45,
         Method::DW1Generic => 28,
         Method::GH3 => {
-
             //Special handling for GH3, since it actually utilize jumps.
-            
+
             let distance = *(offset.add(1 /* Skip call opcode */) as *const usize);
 
             let jmp_address = offset.add(5 /* Skip call opcode + address */ + distance);
@@ -157,7 +163,7 @@ pub unsafe fn hook_host_lookup() {
             });
 
             return;
-        },
+        }
         Method::ROTF => 28,
         Method::None => todo!(),
     };
