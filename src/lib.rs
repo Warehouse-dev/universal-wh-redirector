@@ -1,17 +1,19 @@
 #![allow(non_snake_case)]
 
-use std::{ffi::c_void, mem::transmute, thread, time::Duration};
+use std::{ffi::c_void, mem::transmute, path::Path, thread, time::Duration};
 
 use gethostbyname::hook_host_lookup;
-use log::{info, LevelFilter};
+use log::{error, info, LevelFilter};
 use simplelog::{
     ColorChoice, CombinedLogger, Config, ConfigBuilder, TermLogger, TerminalMode, WriteLogger,
 };
 use windows::{
     core::{s, w, IUnknown, GUID, HRESULT},
     Win32::{
-        Foundation::{HINSTANCE, HMODULE},
-        System::LibraryLoader::{DisableThreadLibraryCalls, GetProcAddress, LoadLibraryW},
+        Foundation::{HINSTANCE, HMODULE, MAX_PATH},
+        System::LibraryLoader::{
+            DisableThreadLibraryCalls, GetModuleFileNameW, GetProcAddress, LoadLibraryW,
+        },
     },
 };
 
@@ -78,12 +80,23 @@ pub unsafe fn init(module: HMODULE) {
     info!("Proxy set");
 
     hook_host_lookup();
-    
-    //Specific handle for UPX packed Grid
-    thread::spawn(|| {
-        thread::sleep(Duration::from_secs(1));
-        hook_host_lookup();
-    });
+
+    match host_exe_name() {
+        Some(name) => {
+            if name.to_ascii_lowercase().as_str() == "grid.exe" {
+                //GOG release of Grid is UPX packed for whatever reason.
+                //Instead of writing a complex check for it being unpacked
+                //I introduced a race condition. Good job me!
+                thread::spawn(|| {
+                    thread::sleep(Duration::from_secs(1));
+                    hook_host_lookup();
+                });
+            }
+        }
+        None => {
+            error!("Failed to get exe name. This is concerning!");
+        }
+    };
 
     info!("Done!");
 }
@@ -109,4 +122,19 @@ pub unsafe extern "system" fn GetAdaptersInfo(
     size: *const c_void,
 ) -> HRESULT {
     PROXY_FUNCTION_IPHLPAPI.unwrap_unchecked()(adapter_info, size)
+}
+
+pub fn host_exe_name() -> Option<String> {
+    let mut buf = [0u16; MAX_PATH as usize];
+
+    let len = unsafe { GetModuleFileNameW(None, &mut buf) } as usize;
+
+    if len == 0 {
+        return None;
+    }
+
+    let full_path = String::from_utf16_lossy(&buf[..len]);
+    Path::new(&full_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
 }

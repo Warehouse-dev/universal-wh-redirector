@@ -118,8 +118,7 @@ pub unsafe fn hook_host_lookup() {
         }
     }
 
-
-    //Very special fix for Grid upx packed binary. Might cause 
+    //Very special fix for Grid upx packed binary. Might cause
     if sig_match == Method::None {
         match find_pattern(
             HOST_LOOKUP_START_OFFSET,
