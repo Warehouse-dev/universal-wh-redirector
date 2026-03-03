@@ -158,7 +158,7 @@ pub unsafe fn hook_host_lookup() {
             use_memory(addr, 4, |addr| {
                 // Replace the address with our faker function
                 let ptr: *mut usize = addr as *mut usize;
-                *ptr = fake_gethostbyname as usize;
+                *ptr = fake_gethostbyname as *const () as usize;
             });
 
             return;
@@ -173,7 +173,7 @@ pub unsafe fn hook_host_lookup() {
     use_memory(gethostname_ptr as *const usize, 4, |addr| {
         // Replace the address with our faker function
         let ptr: *mut usize = addr as *mut usize;
-        *ptr = fake_gethostbyname as usize;
+        *ptr = fake_gethostbyname as *const () as usize;
     });
 }
 
