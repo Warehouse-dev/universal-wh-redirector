@@ -1,0 +1,123 @@
+name: Build and upload UDWR files to wh-updater
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    env:
+      TARGET: i686-pc-windows-gnu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup target add --toolchain nightly $TARGET
+
+      - name: Install MinGW cross toolchain + zip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-i686 zip
+
+      - name: Build release DLLs
+        run: cargo +nightly build --release --target $TARGET
+
+      - name: Prepare zip payloads
+        shell: bash
+        run: |
+          rm -rf dist payloads
+          mkdir -p \
+            dist/transformers_revenge_of_the_fallen \
+            dist/race_driver_grid \
+            dist/guitar_hero_3 \
+            dist/singularity \
+            payloads
+
+          cp "target/$TARGET/release/dinput8.dll" dist/transformers_revenge_of_the_fallen/iphlpapi.dll
+          cp "target/$TARGET/release/dinput8.dll" dist/race_driver_grid/dinput8.dll
+          cp "target/$TARGET/release/dinput8.dll" dist/guitar_hero_3/dinput8.dll
+          cp "target/$TARGET/release/dinput8.dll" dist/singularity/dinput8.dll
+
+          test -f dist/transformers_revenge_of_the_fallen/iphlpapi.dll
+          test -f dist/race_driver_grid/dinput8.dll
+          test -f dist/guitar_hero_3/dinput8.dll
+          test -f dist/singularity/dinput8.dll
+
+          (
+            cd dist/transformers_revenge_of_the_fallen
+            zip -r ../../payloads/transformers_revenge_of_the_fallen.zip iphlpapi.dll
+          )
+
+          (
+            cd dist/race_driver_grid
+            zip -r ../../payloads/race_driver_grid.zip dinput8.dll
+          )
+
+          (
+            cd dist/guitar_hero_3
+            zip -r ../../payloads/guitar_hero_3.zip dinput8.dll
+          )
+
+          (
+            cd dist/singularity
+            zip -r ../../payloads/singularity.zip dinput8.dll
+          )
+
+      - name: Upload Transformers Revenge of the Fallen to release API
+        shell: bash
+        env:
+          API_URL: ${{ secrets.RELEASE_API_URL }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          curl --request POST \
+            --url "$API_URL" \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            -F "version=$VERSION" \
+            -F "game_key=transformers_revenge_of_the_fallen" \
+            -F "update_file=@payloads/transformers_revenge_of_the_fallen.zip"
+
+      - name: Upload Race Driver Grid to release API
+        shell: bash
+        env:
+          API_URL: ${{ secrets.RELEASE_API_URL }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          curl --request POST \
+            --url "$API_URL" \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            -F "version=$VERSION" \
+            -F "game_key=grid" \
+            -F "update_file=@payloads/race_driver_grid.zip"
+
+      - name: Upload Guitar Hero 3 to release API
+        shell: bash
+        env:
+          API_URL: ${{ secrets.RELEASE_API_URL }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          curl --request POST \
+            --url "$API_URL" \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            -F "version=$VERSION" \
+            -F "game_key=guitar_hero_3" \
+            -F "update_file=@payloads/guitar_hero_3.zip"
+
+      - name: Upload Singularity to release API
+        shell: bash
+        env:
+          API_URL: ${{ secrets.RELEASE_API_URL }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          curl --request POST \
+            --url "$API_URL" \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            -F "version=$VERSION" \
+            -F "game_key=singularity" \
+            -F "update_file=@payloads/singularity.zip"
