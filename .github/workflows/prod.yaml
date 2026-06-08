@@ -37,18 +37,18 @@ jobs:
             dist/transformers_revenge_of_the_fallen \
             dist/race_driver_grid \
             dist/guitar_hero_3 \
-            dist/singularity \
+            dist/singularity/Binaries \
             payloads
 
           cp "target/$TARGET/release/dinput8.dll" dist/transformers_revenge_of_the_fallen/iphlpapi.dll
           cp "target/$TARGET/release/dinput8.dll" dist/race_driver_grid/dinput8.dll
           cp "target/$TARGET/release/dinput8.dll" dist/guitar_hero_3/dinput8.dll
-          cp "target/$TARGET/release/dinput8.dll" dist/singularity/dinput8.dll
+          cp "target/$TARGET/release/dinput8.dll" dist/singularity/Binaries/dinput8.dll
 
           test -f dist/transformers_revenge_of_the_fallen/iphlpapi.dll
           test -f dist/race_driver_grid/dinput8.dll
           test -f dist/guitar_hero_3/dinput8.dll
-          test -f dist/singularity/dinput8.dll
+          test -f dist/singularity/Binaries/dinput8.dll
 
           (
             cd dist/transformers_revenge_of_the_fallen
@@ -67,7 +67,7 @@ jobs:
 
           (
             cd dist/singularity
-            zip -r ../../payloads/singularity.zip dinput8.dll
+            zip -r ../../payloads/singularity.zip Binaries/dinput8.dll
           )
 
       - name: Upload Transformers Revenge of the Fallen to release API
